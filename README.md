@@ -7,7 +7,7 @@
 
 ## 🌱 Overview
 
-Knowledge Graph Cultivator (KGC) is an autonomous, self-improving system for extracting high-quality knowledge graphs from text using Large Language Models. Built on the **ACE (Autonomous Cognitive Entity)** framework, KGC continuously refines its extraction quality through iterative analysis, curation, and application cycles.
+Knowledge Graph Cultivator (KGC) is an autonomous, self-improving system for extracting high-quality knowledge graphs from text using Large Language Models. Built on the **ACE (Agentic Context Engineering)** framework from Zhang et al. (2025), KGC continuously refines its extraction quality through iterative analysis, curation, and application cycles.
 
 ### Key Features
 
@@ -157,7 +157,7 @@ Every extracted relationship is classified by type:
 
 ## 🔄 ACE Framework
 
-The ACE (Autonomous Cognitive Entity) framework enables continuous self-improvement:
+The ACE (Agentic Context Engineering) framework enables continuous self-improvement through treating contexts as evolving "playbooks":
 
 ### 1. **Reflector** (Analysis)
 - Analyzes extraction quality using Claude Sonnet 4.5
@@ -240,8 +240,14 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - Built with OpenAI's GPT-4o-mini and Claude Sonnet 4.5
-- Inspired by the vision of autonomous knowledge systems
+- ACE framework inspired by **Zhang et al. (2025)**: "Agentic Context Engineering: Evolving Contexts for Self-Improving Language Models"
 - Developed for the Y on Earth Community
+
+## 📖 References
+
+**Zhang, Q., Hu, C., Xie, W., Liu, W., & Zheng, Y. (2025).** *Agentic Context Engineering: Evolving Contexts for Self-Improving Language Models.* arXiv preprint.
+
+> The ACE framework treats contexts as evolving "playbooks" that guide model behavior through modular processes of generation, reflection, and curation. By applying structured, incremental updates (deltas) rather than full context rewrites, ACE prevents context collapse and enables continuous self-improvement. KGC implements this framework for knowledge graph extraction, using Reflector (analysis), Curator (improvement generation), and Applicator (deployment) cycles.
 
 ## 📧 Contact
 

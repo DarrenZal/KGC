@@ -7,15 +7,18 @@
 
 ## 🌱 Overview
 
-Knowledge Graph Cultivator (KGC) is an autonomous, self-improving system for extracting high-quality knowledge graphs from text using Large Language Models. Built on the **ACE (Agentic Context Engineering)** framework from Zhang et al. (2025), KGC continuously refines its extraction quality through iterative analysis, curation, and application cycles.
+Knowledge Graph Cultivator (KGC) is an autonomous, self-improving system for extracting high-quality knowledge graphs from text using Large Language Models. Built on the **ACE (Agentic Context Engineering)** framework, KGC continuously refines its extraction quality through iterative analysis, curation, and application cycles.
 
-### Key Features
+###  Key Features
 
-- **🤖 ACE-Powered Self-Improvement**: Automatically analyzes extraction quality, generates improvements, and applies them
-- **📊 Comprehensive Extraction**: Extracts bibliographic, categorical, compositional, functional, and organizational relationships
-- **🎯 High Quality**: Achieves <3% error rate (A++ grade) with 100% attribution and classification
-- **📝 Complete Provenance**: Every relationship includes source attribution and statement type classification
-- **🔄 Continuous Evolution**: System improves itself through Reflector → Curator → Applicator cycles
+- **🤖 Meta-ACE Self-Improvement**: System improves both extraction AND improvement agents themselves
+- **📊 Comprehensive Extraction**: Extracts bibliographic, categorical, compositional, functional relationships
+- **🎯 High Quality**: Achieved 7.86% error rate (B+ grade) in V11.2.2, targeting <4.5% (A- grade)
+- **📝 Complete Provenance**: Every relationship includes source attribution and confidence scores
+- **🔄 Continuous Evolution**: Reflector → Curator → Applicator cycles with automated validation
+- **📈 Stat
+
+istically Rigorous**: Automated testing with 95% confidence validation gates
 
 ## 🏗️ Architecture
 
@@ -36,40 +39,56 @@ Knowledge Graph Cultivator (KGC) is an autonomous, self-improving system for ext
 │  PASS 2: Dual-Signal Evaluation      │
 │  • Text Confidence (0.0-1.0)         │
 │  • Knowledge Plausibility (0.0-1.0)  │
-│  • Classification (FACTUAL, etc.)    │
+│  • p_true = (text + knowledge) / 2   │
 └──────┬──────────────────────────────┘
        │
        ▼
 ┌─────────────────────────────────────┐
-│  PASS 2.5: Post-Processing           │
-│  • Pronoun resolution                │
-│  • Entity enrichment                 │
-│  • List splitting                    │
-│  • Bibliographic parsing             │
+│  PASS 2.5: Modular Postprocessing    │
+│  • Pronoun resolution (V1.5.0)       │
+│  • Predicate normalization (V1.3.0)  │
+│  • Generic is-a filtering            │
+│  • Praise quote detection            │
+│  • List splitting (POS tagging)      │
+│  • 12+ specialized modules           │
 └──────┬──────────────────────────────┘
        │
        ▼
 ┌─────────────────────────────────────┐
 │  Knowledge Graph Output              │
-│  • Relationships with attribution    │
-│  • Classification flags              │
+│  • Relationships with p_true ≥ 0.5   │
+│  • Source attribution                │
 │  • Confidence scores                 │
 └─────────────────────────────────────┘
 
 ┌─────────────────────────────────────┐
-│  ACE SELF-IMPROVEMENT CYCLE          │
+│  META-ACE IMPROVEMENT CYCLE          │
 ├─────────────────────────────────────┤
 │  1. REFLECTOR: Analyze quality       │
-│     → Identify issues                │
+│     → Identify ALL issues            │
+│     → Root cause analysis            │
 │     → Generate recommendations       │
 ├─────────────────────────────────────┤
 │  2. CURATOR: Generate improvements   │
-│     → Create changeset               │
-│     → Prioritize changes             │
+│     → Strategic changesets           │
+│     → Prioritized by impact/risk     │
+│     → Both code AND prompts          │
 ├─────────────────────────────────────┤
-│  3. APPLICATOR: Apply changes        │
-│     → Update prompts/code            │
-│     → Deploy new version             │
+│  3. APPLICATOR: Intelligent apply    │
+│     → Claude-powered implementation  │
+│     → Reads current code             │
+│     → Implements strategic guidance  │
+├─────────────────────────────────────┤
+│  4. VALIDATION GATE: Test before     │
+│     → Test 30-50 problematic chunks  │
+│     → Full pipeline (P1+P2+P2.5)     │
+│     → Require ≥30% improvement       │
+│     → 95% confidence, ±10% margin    │
+├─────────────────────────────────────┤
+│  5. META-ACE: Improve the improvers  │
+│     → Fix Reflector if needed        │
+│     → Fix Curator if needed          │
+│     → Iterate until excellent        │
 └─────────────────────────────────────┘
 ```
 
@@ -87,167 +106,244 @@ pip install -r requirements.txt
 
 # Set up environment variables
 cp .env.example .env
-# Edit .env and add your OPENAI_API_KEY
+# Edit .env and add your OPENAI_API_KEY and ANTHROPIC_API_KEY
 ```
 
 ### Basic Usage
 
 ```bash
-# Extract knowledge graph from a PDF
-python scripts/extract.py --input my_book.pdf --output kg_output.json
+# Extract knowledge graph from a PDF (current version)
+python scripts/extract_kg_v11_2_2_book.py
 
 # Run quality analysis (Reflector)
-python scripts/reflect.py --input kg_output.json --output analysis.json
+python scripts/run_reflector_generic.py
 
 # Generate improvements (Curator)
-python scripts/curate.py --analysis analysis.json --output changeset.json
+python scripts/run_curator_generic.py
 
-# Run continuous ACE cycle
-python scripts/run_ace_kg_continuous.py
+# Apply improvements (Applicator)
+python scripts/apply_changeset_generic.py
+
+# Automated full ACE cycle (future)
+python scripts/run_ace_cycle_automated.py
 ```
 
 ### Python API
 
 ```python
-from kgc.extraction import KGExtractor
-from kgc.ace import KGReflector, KGCurator
+from src.ace_kg import KGReflectorAgent, KGCuratorAgent
 
-# Initialize extractor
-extractor = KGExtractor(model="gpt-4o-mini")
-
-# Extract knowledge graph
-kg = extractor.extract_from_text(text)
-
-# Analyze quality
-reflector = KGReflector()
-analysis = reflector.analyze(kg)
+# Analyze extraction quality
+reflector = KGReflectorAgent()
+analysis = reflector.analyze_kg_extraction(
+    relationships=extracted_rels,
+    source_text=book_text,
+    extraction_metadata={'version': 'v11.2.2'}
+)
 
 # Generate improvements
-curator = KGCurator()
-changeset = curator.curate_improvements(analysis, current_version=10)
+curator = KGCuratorAgent()
+changeset = curator.generate_changeset(
+    reflection_analysis=analysis,
+    current_version=11.2
+)
+
+# Generate detailed issues for validation testing
+detailed_issues = reflector.generate_detailed_issues_for_testing(
+    relationships=extracted_rels,
+    source_text=book_text,
+    analysis=analysis,
+    version='v11.2.2',
+    sample_size=30  # For statistical validation
+)
 ```
 
-## 📊 Extraction Results
+## 📊 System Evolution & Results
 
-**V10 System Performance** (Soil Stewardship Handbook):
-- **Relationships**: 650-750 comprehensive extractions
-- **Quality Issues**: <3% (A++ grade)
-- **High Confidence**: 80%+ of relationships
+### Version History
+
+| Version | Date | Error Rate | Grade | Key Improvements |
+|---------|------|------------|-------|------------------|
+| **V11.2.2** | Oct 2025 | **7.86%** | **B+** | **Current validated baseline** |
+| V11.2.1 | Oct 2025 | 21.85% | C- | Buggy baseline (3 module bugs discovered) |
+| V11 | Oct 2025 | ~15% | B | ACE Cycle 1 baseline |
+| V10 | Oct 2025 | ~20% | C+ | Comprehensive extraction |
+| V9 | Sept 2025 | ~25% | C | Complete discourse graph |
+| V8 | Sept 2025 | ~30% | D+ | First ACE cycle |
+| V7 | Sept 2025 | ~35% | D | Dual-signal evaluation |
+
+### V11.2.2 Quality Metrics
+
+- **Total Relationships**: 891 extracted
+- **Issues Identified**: 70 (7.86% error rate)
+- **Issue Breakdown**:
+  - CRITICAL: 0 ✅
+  - HIGH: 8 (possessive pronouns, vague entities)
+  - MEDIUM: 47 (praise quotes, philosophical claims, predicate fragmentation)
+  - MILD: 15 (generic is-a, demonstrative pronouns)
+- **Predicate Consistency**: 125 unique predicates (target: ~80)
 - **Attribution**: 100% (every relationship traced to source)
-- **Classification**: 100% (all statements labeled by type)
 
-### Relationship Types Extracted
+### Meta-ACE Improvements
 
-1. **Bibliographic** (250+): authorship, publication, endorsements
-2. **Categorical** (70+): is-a relationships, definitions
-3. **Compositional**: contains, includes, provides
-4. **Functional**: produces, enhances, stimulates
-5. **Organizational**: affiliations, roles, collaborations
+**Meta-Cycle 1** (V11.2.2 → V12):
+1. ✅ **Fixed Curator**: Improved path resolution (A → A+, 36/40 → 39/40)
+2. ✅ **10/10 Changes Applied**: All V12 improvements deployed
+   - Enhanced pronoun resolution (possessive pronouns)
+   - V12 extraction prompts (prevent vague entities)
+   - V12 evaluation prompts (entity quality checks)
+   - Enhanced predicate normalization (V1.3.0)
+   - New generic is-a filter
+   - Expanded praise quote detection
+3. ✅ **Built Automated Testing**: Full pipeline validation system
+4. ✅ **Enhanced Reflector**: Outputs all issues for statistical testing
 
-## 🎯 Statement Classification
+**Target for V12**: <4.5% error rate (A- grade, ~40 issues)
 
-Every extracted relationship is classified by type:
+## 🔬 Technical Innovation
 
-- **FACTUAL** (p_true: 0.7-1.0): Verifiable facts, citations, concrete relationships
-- **TESTABLE_CLAIM** (p_true: 0.4-0.9): Scientific assertions with empirical basis
-- **PHILOSOPHICAL_CLAIM** (p_true: 0.1-0.4): Existential statements, opinions
-- **METAPHOR** (p_true: 0.1-0.4): Figurative language
-- **OPINION** (p_true: 0.3-0.6): Subjective viewpoints
-- **ABSTRACT_CONCEPT** (p_true: 0.2-0.5): Complex abstract ideas
+### 1. **Meta-ACE**: Improving the Improvers
 
-## 🔄 ACE Framework
+Unlike standard ACE which only improves extraction, our system improves THE IMPROVEMENT AGENTS themselves:
 
-The ACE (Agentic Context Engineering) framework enables continuous self-improvement through treating contexts as evolving "playbooks":
+- **Reflector Meta-ACE**: If Reflector misses issues, we improve Reflector first
+- **Curator Meta-ACE**: If Curator generates bad changes, we fix Curator and retry
+- **Version Control**: Immutable baselines for safe iteration
+- **Scoring System**: 40-point rubric for agent quality (strategic insight, technical depth, etc.)
 
-### 1. **Reflector** (Analysis)
-- Analyzes extraction quality using Claude Sonnet 4.5
-- Identifies issues by severity (CRITICAL, HIGH, MEDIUM, MILD)
-- Generates improvement recommendations
-- Provides quality grades and metrics
+### 2. **Intelligent Applicator**
 
-### 2. **Curator** (Synthesis)
-- Processes Reflector analysis
-- Generates concrete changesets (code + prompts)
-- Prioritizes changes by impact and risk
-- Creates testing strategies
+Strategic changes are implemented by Claude, not string replacement:
 
-### 3. **Applicator** (Execution)
-- Applies changesets to codebase
-- Updates prompts and code
-- Deploys new versions
-- Validates improvements
+- **Reads current code**: Understands context and existing implementation
+- **Implements strategic guidance**: "Make X better" → intelligent code changes
+- **Handles complexity**: Can implement multi-file changes, refactors, new features
+- **Safe execution**: Tracks successes/failures, rollback on critical errors
+
+### 3. **Automated Validation Gates**
+
+Before running expensive full extractions, test improvements on statistically significant samples:
+
+- **Sample Size**: 30-50 issues (95% confidence, ±10% margin of error)
+- **Stratified Sampling**: Proportional by severity (CRITICAL, HIGH, MEDIUM, MILD)
+- **Full Pipeline Testing**: Pass 1 → Pass 2 → Pass 2.5 on each sample
+- **Automated Decisions**: Proceed only if ≥30% improvement observed
+- **Time Savings**: 5 min validation vs 40 min full extraction
+
+### 4. **Modular Postprocessing Pipeline**
+
+Pass 2.5 uses 12+ specialized modules, each versioned independently:
+
+- **PronounResolver** (V1.5.0): Anaphoric, generic, and possessive pronouns
+- **PredicateNormalizer** (V1.3.0): 173 → ~80 unique predicates
+- **GenericIsAFilter** (V1.0): Filters metaphorical and generic is-a relationships
+- **PraiseQuoteDetector** (V1.3.0): Identifies endorsement language
+- **ListSplitter** (V1.2): POS tagging for intelligent list splitting
+- **BibliographicCitationParser** (V1.2): Authorship, dedications, endorsements
+- **ClaimClassifier** (V1.1.0): FACTUAL, PHILOSOPHICAL, OPINION, RECOMMENDATION
+
+Each module is independently testable and improvable.
 
 ## 📚 Documentation
 
-- **[Quick Start Guide](docs/QUICK_START.md)**: Get started in 5 minutes
-- **[ACE Framework Deep Dive](docs/ACE_FRAMEWORK.md)**: Understanding the self-improvement cycle
-- **[Extraction Guide](docs/EXTRACTION_GUIDE.md)**: Customizing extraction for your domain
-- **[V10 Implementation Plan](docs/V10_COMPREHENSIVE_KG_PLAN.md)**: Latest system design
-- **[KG Master Guide](docs/KG_MASTER_GUIDE.md)**: Comprehensive system documentation
+- **[Quick Start](docs/KG_SYSTEM_OVERVIEW.md)**: System overview and basic usage
+- **[ACE Framework Guide](docs/ACE_KG_EXTRACTION_VISION.md)**: Understanding self-improvement
+- **[Master Guide](docs/KG_MASTER_GUIDE.md)**: Comprehensive technical documentation
+- **[Meta-ACE](../docs/knowledge_graph/ACE_META_TUNING_RECOMMENDATIONS.md)**: Improving the improvement agents
+- **[Full Automation Plan](../docs/knowledge_graph/ACE_FULL_AUTOMATION_PLAN.md)**: Future automated testing
 
 ## 🛠️ Configuration
 
 ### Extraction Settings
 
-Edit `kgc/prompts/pass1_extraction_v10.txt` to customize:
-- Relationship types to extract
-- Entity quality requirements
-- Few-shot examples
-- Domain-specific instructions
+Prompts are versioned and located in `kg_extraction_playbook/prompts/`:
+- `pass1_extraction_v12.txt`: Entity and relationship extraction
+- `pass2_evaluation_v12.txt`: Dual-signal confidence scoring
+- Each prompt includes constraints, examples, and quality requirements
 
-### Evaluation Settings
+### Postprocessing Modules
 
-Edit `kgc/prompts/pass2_evaluation_v10.txt` to adjust:
-- Confidence scoring thresholds
-- Classification criteria
-- Knowledge plausibility calibration
+Located in `src/knowledge_graph/postprocessing/`:
+- **Universal modules**: `/universal/` (pronoun resolution, normalization, etc.)
+- **Book-specific**: `/content_specific/books/` (bibliographic parsing, praise detection)
+- Each module has version history and can be independently updated
 
-## 🔬 Research & Development
+## 🔄 Running an ACE Cycle
 
-### Version History
+### Manual Process
 
-- **V10** (Current): Comprehensive factual extraction with <3% error rate
-- **V9**: 100% attribution + classification system
-- **V8**: ACE Cycle 1 - Curator-generated improvements
-- **V7**: Dual-signal evaluation with philosophical filter
-- **V6**: Enhanced post-processing modules
-- **V5**: Production-ready system with pronoun resolution
+```bash
+# 1. Run extraction (current version)
+python scripts/extract_kg_v11_2_2_book.py
 
-### Published Results
+# 2. Run Reflector to analyze quality
+python scripts/run_reflector_generic.py
+# → Outputs: analysis_reports/reflection_v11.2.2_TIMESTAMP.json
 
-See `docs/` for detailed analysis of each version's improvements, including:
-- Quality metrics and comparisons
-- Reflector analysis reports
-- Curator-generated changesets
-- Performance benchmarks
+# 3. Run Curator to generate improvements
+python scripts/run_curator_generic.py
+# → Outputs: changesets/changeset_v12_TIMESTAMP.json
+
+# 4. Review changeset (check priority, risk, recommendations)
+cat kg_extraction_playbook/changesets/changeset_v12_*.json | python -m json.tool
+
+# 5. Apply changeset (uses Intelligent Applicator)
+python scripts/apply_changeset_generic.py
+# → Reads latest changeset, applies all operations
+
+# 6. Run new extraction to validate
+python scripts/extract_kg_v12_book.py
+```
+
+### Automated Process (Future)
+
+```bash
+# Run complete ACE cycle with validation
+python scripts/run_ace_cycle_automated.py
+
+# This will:
+# 1. Generate detailed issues from last Reflector run
+# 2. Run Curator to create improvements
+# 3. Apply changeset
+# 4. TEST on 30-50 problematic chunks (5 minutes)
+# 5. If ≥30% improvement: proceed to full extraction
+# 6. If <30%: iterate Curator, retry
+# 7. Run Reflector on new version
+# 8. Compare metrics, decide next steps
+```
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-### Areas for Contribution
+We welcome contributions! Areas of interest:
 
 - **New relationship types**: Expand extraction capabilities
 - **Domain adaptation**: Customize for specific fields (legal, medical, scientific)
-- **Performance optimization**: Speed improvements, batch processing
-- **Quality metrics**: New evaluation criteria
-- **Documentation**: Tutorials, examples, translations
+- **Performance optimization**: Batch processing, parallel execution
+- **Agent improvements**: Better Reflector/Curator strategies
+- **Testing infrastructure**: More robust validation
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-- Built with OpenAI's GPT-4o-mini and Claude Sonnet 4.5
-- ACE framework inspired by **Zhang et al. (2025)**: "Agentic Context Engineering: Evolving Contexts for Self-Improving Language Models"
+- Built with OpenAI GPT-4o-mini and Anthropic Claude Sonnet 4.5
+- ACE framework inspired by **Zhang et al. (2025)**: "Agentic Context Engineering"
 - Developed for the Y on Earth Community
 
-## 📖 References
+## 📖 Citation
 
-**Zhang, Q., Hu, C., Xie, W., Liu, W., & Zheng, Y. (2025).** *Agentic Context Engineering: Evolving Contexts for Self-Improving Language Models.* arXiv preprint.
+If you use KGC in your research, please cite:
 
-> The ACE framework treats contexts as evolving "playbooks" that guide model behavior through modular processes of generation, reflection, and curation. By applying structured, incremental updates (deltas) rather than full context rewrites, ACE prevents context collapse and enables continuous self-improvement. KGC implements this framework for knowledge graph extraction, using Reflector (analysis), Curator (improvement generation), and Applicator (deployment) cycles.
+```bibtex
+@software{kgc2025,
+  author = {Zal, Darren},
+  title = {Knowledge Graph Cultivator: A Self-Improving KG Extraction System},
+  year = {2025},
+  url = {https://github.com/DarrenZal/KGC}
+}
+```
 
 ## 📧 Contact
 
@@ -255,10 +351,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **GitHub**: [@DarrenZal](https://github.com/DarrenZal)
 - **Project**: [KGC Repository](https://github.com/DarrenZal/KGC)
 
-## 🌟 Star History
-
-If you find KGC useful, please star the repository!
-
 ---
 
-**Note**: This is an active research project. The system continuously improves through the ACE framework. See [CHANGELOG.md](CHANGELOG.md) for version updates.
+**Current Status**: V11.2.2 validated (7.86% error, B+ grade). V12 in progress targeting <4.5% (A- grade). Meta-ACE improvements complete. Automated validation gates implemented.
+
+See [CHANGELOG.md](CHANGELOG.md) for detailed version history.

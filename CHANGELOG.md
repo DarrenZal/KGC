@@ -23,14 +23,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Applicator enhancements**: Smart path resolution for project-root vs playbook paths
 - **Automated changeset application**: All 10/10 V12 changes applied successfully
 
+### Fixed
+- **Pydantic schema mismatch** (Oct 14): V12 Pass 2 prompt requested 3 fields not in Pydantic model
+  - Added `entity_specificity_score: float` (0.0-1.0) to track entity concreteness
+  - Added `claim_type: str` (FACTUAL/PHILOSOPHICAL/NORMATIVE) for claim classification
+  - Added `claim_type_penalty: float` (0.0-0.5) for philosophical/normative penalties
+  - Fixed in: RelationshipEvaluation Pydantic model + ModuleRelationship dataclass
+  - Result: V12 extraction now runs successfully with full quality tracking
+
 ### Target
 - **Quality goal**: <4.5% error rate (A- grade, ~40 issues vs V11.2.2's 70)
 - **Time savings**: 5 min validation tests vs 40 min full extraction
 
 ### Status
-- ⚠️ **Pass 2 failure**: Missing 'candidate_uid' field in Pydantic model (needs fix)
-- Pass 1 successful: 793 relationships extracted
-- Pass 2.5 ready: All modules enhanced
+- ✅ **Pydantic schema fixed**: Added entity_specificity_score, claim_type, claim_type_penalty fields
+- ⏳ **V12 extraction running**: Pass 1 (chunks 22/25), Pass 2, and Pass 2.5 in progress
+- 🎯 **Quality tracking enhanced**: V12 now tracks entity specificity and claim types at extraction time
 
 ## [11.2.2] - 2025-10-14
 

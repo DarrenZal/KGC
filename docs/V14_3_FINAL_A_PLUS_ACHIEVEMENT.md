@@ -18,6 +18,44 @@ The Knowledge Graph extraction pipeline achieved **A+ grade** with:
 - ✅ **93% reduction** in issue rate from V14.3.7 baseline
 - ✅ **front_matter section READY TO FREEZE**
 
+## 🏷️ Git Tag for Reproducibility
+
+**Tag:** `v14.3.10-A-plus-state`
+**Commit:** `7d22a6e`
+
+This tag preserves the **exact code state** that achieved A+ grade for front_matter extraction. Use this tag to reproduce the front_matter extraction or reference the frozen configuration when iterating on future chapters.
+
+### To Reproduce Front_Matter Extraction:
+
+```bash
+# Check out the frozen state
+git checkout v14.3.10-A-plus-state
+
+# Run extraction (will produce identical results)
+python3 scripts/extract_kg_v14_3_8_incremental.py \
+  --book our_biggest_deal \
+  --section front_matter \
+  --pages 1-30 \
+  --author "Aaron William Perry"
+
+# Return to current development state
+git checkout main
+```
+
+### What's Preserved in This Tag:
+
+1. ✅ Extraction script: `scripts/extract_kg_v14_3_8_incremental.py`
+2. ✅ Pipeline configuration: `get_book_pipeline_v1438()` in `book_pipeline.py`
+3. ✅ All module implementations with V14.3.10 improvements:
+   - DedicationNormalizer (V14.3.8)
+   - BibliographicCitationParser (V14.3.9)
+   - PraiseQuoteDetector, SubtitleJoiner (V14.3.10)
+   - FigurativeLanguageFilter, VagueEntityBlocker (V14.3.10)
+4. ✅ Prompt files: `kgc/prompts/pass1_extraction_v14_3_1.txt`, `pass2_evaluation_v14_3.txt`
+5. ✅ Documentation: Complete implementation history
+
+**Note:** This tag was created before starting Chapter 1 extraction to ensure the A+ configuration remains accessible even if future iterations modify the code for different chapter characteristics.
+
 ---
 
 ## 📊 Version Progression

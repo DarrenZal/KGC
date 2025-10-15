@@ -91,21 +91,8 @@ Is this relationship plausible, verifiable, and concrete given world knowledge?
 - (composting, improves, soil quality) → **0.6** (generally accepted, some evidence)
 - (Learning about soil, benefits, families) → **0.5** (plausible but vague entities)
 
-### 0.3-0.5: Philosophical Claims / Normative Statements 🔍 PHILOSOPHICAL_CLAIM DETECTION
+### 0.3-0.5: Philosophical Claims / Normative Statements
 **Philosophical essence claims, normative prescriptions, value judgments, metaphorical abstractions**
-
-**PHILOSOPHICAL_CLAIM Detection Criterion:**
-
-**Indicators of philosophical claims:**
-- **Essence claims**: "X is what it means to be Y" (defining essence or nature)
-- **Metaphorical abstractions**: "X is the answer/key/solution" (abstract metaphorical statements)
-- **Normative prescriptions**: "we should/must do X" (prescriptive value statements)
-- **Value judgments**: "it is essential that" (subjective importance claims)
-- **Existential definitions**: "to be X is to Y" (defining existence or being)
-
-**Scoring impact**: If philosophical claim detected → **p_true: 0.3-0.5** (low confidence, not verifiable)
-
-**Classification**: Add flag **PHILOSOPHICAL_CLAIM**
 
 **Examples**:
 - (being connected to land, is what it means to be, human) → **0.3** (philosophical essence claim)
@@ -132,7 +119,62 @@ Is this relationship plausible, verifiable, and concrete given world knowledge?
 - (Our land, is, a veritable Eden) → **0.3** (metaphor, not literal fact)
 - (the crossroads, is characterized by, immense complexity) → **0.2** (abstract metaphor)
 
-## ENTITY TYPE ASSESSMENT
+## 3. ENTITY SPECIFICITY (entity_specificity_score: 0.0-1.0)
+
+Evaluate whether entities are concrete and informative, or vague and generic.
+
+**Score 0.0-1.0 based on entity concreteness:**
+
+### 0.0-0.3: Vague Abstractions (NO INFORMATIONAL VALUE)
+**Generic processes, vague actions, abstract plans, indefinite references**
+
+**Patterns to penalize:**
+- Generic processes: "the answer", "the way", "the solution", "the process", "the key"
+- Vague actions: "easy steps", "simple actions", "basic practices", "practical tips"
+- Abstract plans: "plan for action", "framework for X", "approach to Y", "strategy for Z"
+- Indefinite references: "aspects of life", "elements of X", "parts of Y", "components of Z"
+- Empty descriptors: "important things", "key factors", "essential elements"
+
+**Examples**:
+- ❌ (Handbook, provides, easy steps) → **entity_specificity: 0.2** - "easy steps" is too vague
+- ❌ (Soil, is the answer to, climate change) → **entity_specificity: 0.3** - "the answer" is abstract
+- ❌ (Book, offers, practical tips) → **entity_specificity: 0.2** - "practical tips" is generic
+- ❌ (Author, presents, framework for action) → **entity_specificity: 0.3** - "framework for action" is vague
+- ❌ (Farming, involves, important aspects) → **entity_specificity: 0.1** - "important aspects" is meaningless
+
+### 0.4-0.6: Somewhat Generic (CONTEXTUALLY CLEAR)
+**Entities that are somewhat generic but have clear meaning in context**
+
+**Examples**:
+- (Handbook, provides, guidance) → **entity_specificity: 0.5** - generic but clear
+- (Book, discusses, methods) → **entity_specificity: 0.5** - somewhat vague but acceptable
+- (Soil, requires, management) → **entity_specificity: 0.5** - generic but contextually clear
+
+### 0.7-1.0: Specific and Concrete (HIGH INFORMATIONAL VALUE)
+**Concrete entities with clear referents, specific processes, named concepts**
+
+**Examples**:
+- ✅ (Handbook, provides, soil stewardship techniques) → **entity_specificity: 0.9** - specific and concrete
+- ✅ (Soil, can help mitigate, climate change) → **entity_specificity: 0.8** - concrete relationship
+- ✅ (Compost, contains, nitrogen) → **entity_specificity: 1.0** - specific composition
+- ✅ (Aaron Perry, authored, Soil Stewardship Handbook) → **entity_specificity: 1.0** - concrete entities
+- ✅ (Cover cropping, prevents, soil erosion) → **entity_specificity: 0.9** - specific process and outcome
+- ✅ (Biochar, sequesters, carbon) → **entity_specificity: 0.9** - concrete material and process
+
+### Scoring Instruction:
+
+1. Evaluate both source and target entities for specificity
+2. Take the LOWER of the two entity scores as entity_specificity_score
+3. **Multiply final p_true by entity_specificity_score**
+4. **If entity_specificity < 0.5, cap p_true at 0.4** regardless of other scores
+5. This ensures vague abstractions are penalized even if text is clear
+
+**Examples of final scoring:**
+- (Handbook, provides, easy steps): text_confidence=0.9, knowledge=0.7, entity_specificity=0.2 → **p_true = 0.7 × 0.2 = 0.14, capped at 0.4 → final: 0.14**
+- (Handbook, provides, soil stewardship techniques): text_confidence=0.9, knowledge=0.8, entity_specificity=0.9 → **p_true = 0.8 × 0.9 = 0.72**
+- (Soil, is the answer to, climate change): text_confidence=0.8, knowledge=0.3, entity_specificity=0.3 → **p_true = 0.3 × 0.3 = 0.09, capped at 0.4 → final: 0.09**
+
+## 4. ENTITY TYPE ASSESSMENT
 
 For the knowledge signal, also consider:
 - **What types are the source and target entities?**
@@ -234,6 +276,12 @@ Set `signals_conflict=true` when signals diverge significantly:
 - Knowledge: "we" is too vague, not a concrete entity → p_true: 0.4
 - **Conflict**: "Text states the relationship, but 'we' is a pronoun that needs resolution to a specific entity"
 
+### Case 5: Vague/Generic Entity Issues
+**Example**: "Handbook provides easy steps"
+- Text: Sentence clearly states this → text_confidence: 0.9
+- Entity Specificity: "easy steps" is too vague → entity_specificity: 0.2
+- **Conflict**: "Text is clear, but 'easy steps' is too generic and provides no informational value"
+
 **When setting signals_conflict=true:**
 - **MUST include** `conflict_explanation` describing WHY the signals conflict
 - **SHOULD include** `suggested_correction` if you know how to fix it
@@ -246,6 +294,8 @@ Set `signals_conflict=true` when signals diverge significantly:
 - "Source is vague quantifier 'thousands' - should be 'thousands of people' or 'thousands of farmers'"
 - "Philosophical essence claim - not empirically verifiable"
 - "Normative prescription ('should/must') - expresses value judgment, not factual relationship"
+- "Target entity 'easy steps' is too vague and generic - should be specific technique or practice"
+- "Target entity 'the answer' is abstract metaphor with no concrete meaning"
 
 ## OUTPUT FORMAT
 
@@ -255,6 +305,7 @@ For each relationship, return:
   "candidate_uid": "<UNCHANGED from input>",
   "text_confidence": 0.0-1.0,
   "p_true": 0.0-1.0,
+  "entity_specificity_score": 0.0-1.0,
   "signals_conflict": true/false,
   "conflict_explanation": "string (if signals_conflict=true)",
   "suggested_correction": {{"source": "...", "relationship": "...", "target": "..."}} (optional),
@@ -270,13 +321,16 @@ For each relationship, return:
 
 1. **Return candidate_uid UNCHANGED** in every output object
 2. **Evaluate all {batch_size} relationships** in the same order as input
-3. **Assign classification flags** based on statement type (FACTUAL, METAPHOR, PHILOSOPHICAL_CLAIM, etc.)
-4. **Knowledge scores reflect verifiability** - philosophical statements and metaphors score 0.0-0.5, but we still extract them
-5. **Set signals_conflict=true** when text and knowledge diverge significantly (>0.3 difference)
-6. **Always provide conflict_explanation** when signals_conflict=true
-7. **⭐ BIBLIOGRAPHIC CITATIONS ARE HIGH VALUE** - score them 0.9-1.0, do NOT dismiss as "too simple"
-8. **⭐ CATEGORICAL DEFINITIONS ARE HIGH VALUE** - score them 0.7-0.9, do NOT dismiss as "too obvious"
-9. **⭐ COMPOSITIONAL RELATIONSHIPS ARE HIGH VALUE** - score them 0.7-0.9, do NOT dismiss as "too trivial"
-10. **⭐ FUNCTIONAL RELATIONSHIPS ARE HIGH VALUE** - score them 0.7-0.9, do NOT dismiss as "too basic"
-11. **🔍 DETECT PHILOSOPHICAL CLAIMS** - flag essence claims, normative prescriptions, value judgments with p_true: 0.3-0.5
+3. **Evaluate entity specificity** - penalize vague abstractions like "easy steps", "the answer", "practical tips"
+4. **Apply entity specificity multiplier** - multiply p_true by entity_specificity_score, cap at 0.4 if entity_specificity < 0.5
+5. **Assign classification flags** based on statement type (FACTUAL, METAPHOR, PHILOSOPHICAL_CLAIM, etc.)
+6. **Knowledge scores reflect verifiability** - philosophical statements and metaphors score 0.0-0.5, but we still extract them
+7. **Set signals_conflict=true** when text and knowledge diverge significantly (>0.3 difference) OR when entity_specificity < 0.5
+8. **Always provide conflict_explanation** when signals_conflict=true
+9. **⭐ BIBLIOGRAPHIC CITATIONS ARE HIGH VALUE** - score them 0.9-1.0, do NOT dismiss as "too simple"
+10. **⭐ CATEGORICAL DEFINITIONS ARE HIGH VALUE** - score them 0.7-0.9, do NOT dismiss as "too obvious"
+11. **⭐ COMPOSITIONAL RELATIONSHIPS ARE HIGH VALUE** - score them 0.7-0.9, do NOT dismiss as "too trivial"
+12. **⭐ FUNCTIONAL RELATIONSHIPS ARE HIGH VALUE** - score them 0.7-0.9, do NOT dismiss as "too basic"
+13. **🔍 DETECT PHILOSOPHICAL CLAIMS** - flag essence claims, normative prescriptions, value judgments with p_true: 0.3-0.5
+14. **🔍 PENALIZE VAGUE ENTITIES** - "easy steps", "the answer", "practical tips", "framework for action" get entity_specificity < 0.3
 ```

@@ -155,12 +155,14 @@ EXPANDED DETECTION PATTERNS (Meta-ACE Improvements):
 - **Abstract Vague Patterns**: "the way", "the answer", "the solution", "the problem" (too abstract)
 - **Philosophical Statements**: Overly abstract relationships that don't convey concrete information
 - **Praise Quotes**: Endorsement language misinterpreted as factual claims
+- **Duplicate Relationships**: Exact same source-predicate-target appearing multiple times (indicates deduplication failure)
+- **Predicate Fragmentation**: Too many unique predicates (>150) or many variations of same base predicate (indicates need for normalization)
 
 SEVERITY LEVELS (use these exactly):
 - **CRITICAL**: Factually wrong, reversed relationships, breaks KG utility
 - **HIGH**: Missing entity resolution, unusable relationships
-- **MEDIUM**: Vague but potentially useful, clarity issues
-- **MILD**: Minor clarity issues, doesn't harm KG utility (e.g., "my people" instead of "Slovenians" when context is clear)
+- **MEDIUM**: Vague but potentially useful, clarity issues, duplicate relationships (>20), predicate fragmentation (>150 unique predicates)
+- **MILD**: Minor clarity issues, doesn't harm KG utility (e.g., "my people" instead of "Slovenians" when context is clear), few duplicates (<10)
 
 Your analysis must:
 1. Count issues in each category
@@ -293,6 +295,41 @@ Be thorough, specific, and actionable. Your analysis drives the improvement loop
         # Sample relationships for analysis (first 100 for prompt length)
         sample_rels = relationships[:100]
 
+        # PRE-COMPUTE: Duplicate relationship detection
+        from collections import defaultdict
+        rel_signatures = defaultdict(list)
+        for i, r in enumerate(relationships):
+            sig = (r['source'].lower().strip(), r['relationship'].lower().strip(), r['target'].lower().strip())
+            rel_signatures[sig].append(i)
+
+        duplicates = {sig: indices for sig, indices in rel_signatures.items() if len(indices) > 1}
+        duplicate_count = sum(len(indices) - 1 for indices in duplicates.values())  # Extra copies
+        duplicate_examples = []
+        for sig, indices in list(duplicates.items())[:5]:
+            source, rel, target = sig
+            duplicate_examples.append({
+                'source': source,
+                'relationship': rel,
+                'target': target,
+                'count': len(indices),
+                'indices': indices[:3]  # Show first 3 indices
+            })
+
+        # PRE-COMPUTE: Predicate fragmentation analysis
+        from collections import Counter
+        predicate_counts = Counter(r['relationship'] for r in relationships)
+        unique_predicates = len(predicate_counts)
+
+        # Group similar predicates (by first word)
+        predicate_groups = defaultdict(set)
+        for pred in predicate_counts.keys():
+            base = pred.split()[0] if ' ' in pred else pred
+            predicate_groups[base].add(pred)
+
+        # Find fragmented predicates (same base word, multiple variations)
+        fragmented_preds = {base: list(variations) for base, variations in predicate_groups.items()
+                           if len(variations) > 3}  # More than 3 variations
+
         # Load current prompts for analysis
         version = extraction_metadata.get('version', 'v7')
         try:
@@ -318,6 +355,23 @@ Version: {extraction_metadata.get('version', 'unknown')}
 Book: {extraction_metadata.get('book_title', 'unknown')}
 Total Relationships: {len(relationships)}
 Extraction Date: {extraction_metadata.get('date', 'unknown')}
+
+## PRE-COMPUTED DATA QUALITY STATISTICS
+
+### Duplicate Relationships
+- **Total duplicate relationship instances**: {duplicate_count} (extra copies of identical source-predicate-target triples)
+- **Unique relationship patterns with duplicates**: {len(duplicates)}
+- **Top duplicate examples**:
+{json.dumps(duplicate_examples, indent=2)}
+
+**Note**: These are exact duplicates after case-insensitive normalization. You should flag this as a MEDIUM issue if duplicate_count > 20.
+
+### Predicate Fragmentation
+- **Total unique predicates**: {unique_predicates}
+- **Fragmented predicate groups** (same base word, 4+ variations):
+{json.dumps(fragmented_preds, indent=2)}
+
+**Note**: If unique_predicates > 150, this indicates predicate fragmentation. Common predicates like "is", "published", "has" should be normalized to fewer canonical forms.
 
 ## CURRENT PROMPTS (ANALYZE THESE!)
 
@@ -385,6 +439,138 @@ Output your analysis as JSON matching the schema in your system prompt."""
             json.dump(analysis, f, indent=2)
 
         print(f"✅ Analysis saved to: {output_path}")
+
+    def generate_detailed_issues_for_testing(
+        self,
+        relationships: List[Dict[str, Any]],
+        source_text: str,
+        analysis: Dict[str, Any],
+        version: str,
+        sample_size: int = None
+    ) -> Dict[str, Any]:
+        """
+        Generate detailed list of ALL issues for automated pipeline testing.
+
+        Unlike the main analysis which shows 2-3 examples per category,
+        this method extracts ALL problematic relationships for validation testing.
+
+        Args:
+            relationships: All extracted relationships
+            source_text: Original book text
+            analysis: Reflector analysis output with issue categories
+            version: Version string (e.g., "v11.2.2")
+            sample_size: Optional sample size (None = all issues)
+
+        Returns:
+            Dict with detailed issues list for automated testing
+        """
+        all_issues = []
+        issue_id = 1
+
+        # Extract ALL issues from each category
+        for category in analysis.get('issue_categories', []):
+            category_name = category.get('category_name')
+            severity = category.get('severity')
+            examples = category.get('examples', [])
+
+            # Each example represents an actual issue
+            for example in examples:
+                all_issues.append({
+                    'issue_id': f"{version}_{issue_id:03d}",
+                    'category': category_name,
+                    'severity': severity,
+                    'source': example.get('source', ''),
+                    'relationship': example.get('relationship', ''),
+                    'target': example.get('target', ''),
+                    'evidence_text': example.get('evidence_text', ''),
+                    'page': example.get('page', 0),
+                    'what_is_wrong': example.get('what_is_wrong', ''),
+                    'should_be': example.get('should_be', None)
+                })
+                issue_id += 1
+
+        # Add novel error pattern issues
+        for pattern in analysis.get('novel_error_patterns', []):
+            pattern_name = pattern.get('pattern_name')
+            severity = pattern.get('severity')
+            examples = pattern.get('examples', [])
+
+            for example in examples:
+                all_issues.append({
+                    'issue_id': f"{version}_{issue_id:03d}",
+                    'category': f"Novel: {pattern_name}",
+                    'severity': severity,
+                    'source': example.get('source', ''),
+                    'relationship': example.get('relationship', ''),
+                    'target': example.get('target', ''),
+                    'evidence_text': example.get('evidence_text', ''),
+                    'page': example.get('page', 0),
+                    'what_is_wrong': pattern.get('description', ''),
+                    'should_be': example.get('should_be', None)
+                })
+                issue_id += 1
+
+        # Calculate sample if requested
+        if sample_size and sample_size < len(all_issues):
+            # Stratified sampling by severity
+            import random
+            random.seed(42)  # Reproducible sampling
+
+            severity_groups = {'CRITICAL': [], 'HIGH': [], 'MEDIUM': [], 'MILD': []}
+            for issue in all_issues:
+                severity_groups[issue['severity']].append(issue)
+
+            # Proportional sampling
+            total = len(all_issues)
+            sampled = []
+            for severity, issues in severity_groups.items():
+                proportion = len(issues) / total
+                n_sample = max(1, int(sample_size * proportion))  # At least 1 per severity
+                n_sample = min(n_sample, len(issues))  # Don't exceed available
+                sampled.extend(random.sample(issues, n_sample))
+
+            all_issues = sampled
+
+        # Generate detailed output
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        detailed_output = {
+            'metadata': {
+                'version': version,
+                'test_type': 'detailed_issues_for_validation',
+                'generated_at': timestamp,
+                'total_issues': len(all_issues),
+                'sampled': sample_size is not None,
+                'sample_size': len(all_issues) if sample_size else None
+            },
+            'issues_summary': {
+                'by_severity': {
+                    'CRITICAL': sum(1 for i in all_issues if i['severity'] == 'CRITICAL'),
+                    'HIGH': sum(1 for i in all_issues if i['severity'] == 'HIGH'),
+                    'MEDIUM': sum(1 for i in all_issues if i['severity'] == 'MEDIUM'),
+                    'MILD': sum(1 for i in all_issues if i['severity'] == 'MILD')
+                },
+                'by_category': {}
+            },
+            'issues_detailed': all_issues
+        }
+
+        # Count by category
+        from collections import Counter
+        category_counts = Counter(i['category'] for i in all_issues)
+        detailed_output['issues_summary']['by_category'] = dict(category_counts)
+
+        # Save detailed issues
+        analysis_dir = self.playbook_path / "analysis_reports"
+        output_path = analysis_dir / f"reflection_{version}_detailed_{timestamp}.json"
+
+        with open(output_path, 'w') as f:
+            json.dump(detailed_output, f, indent=2)
+
+        print(f"✅ Detailed issues saved to: {output_path}")
+        print(f"   Total issues: {len(all_issues)}")
+        print(f"   For automated validation testing")
+
+        return detailed_output
 
 
 if __name__ == "__main__":

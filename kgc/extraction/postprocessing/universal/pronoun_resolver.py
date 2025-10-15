@@ -41,7 +41,7 @@ class PronounResolver(PostProcessingModule):
     content_types = ["all"]
     priority = 60
     dependencies = []  # No dependencies
-    version = "1.5.0"  # V11 batch processing optimization
+    version = "1.6.0"  # V14.3.4: Entity-type-aware pronoun detection
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         super().__init__(config)
@@ -58,6 +58,12 @@ class PronounResolver(PostProcessingModule):
         # Possessive pronouns (V8 NEW)
         self.possessive_pronouns = self.config.get('possessive_pronouns', [
             'my', 'our', 'your', 'their', 'his', 'her', 'its'
+        ])
+
+        # V14.3.4 NEW: Entity types that should skip pronoun resolution
+        # These are proper nouns where "our", "my", etc. are part of the name
+        self.skip_pronoun_types = self.config.get('skip_pronoun_types', [
+            'Book', 'Organization', 'Location', 'Event', 'Product', 'Work', 'Title'
         ])
 
         # Possessive patterns for resolution
@@ -475,8 +481,12 @@ class PronounResolver(PostProcessingModule):
         evidence_text = rel.evidence_text
 
         # Resolve source
+        # V14.3.4 NEW: Skip pronoun resolution for proper noun types
+        source_type = getattr(rel, 'source_type', None)
+        should_skip_source = source_type in self.skip_pronoun_types if source_type else False
+
         # V10: Check for possessive pronouns first
-        if self.is_possessive_pronoun(rel.source):
+        if self.is_possessive_pronoun(rel.source) and not should_skip_source:
             resolved = self.resolve_possessive_pronouns(rel.source, page_num, evidence_text)
             if resolved:
                 if rel.flags is None:
@@ -489,7 +499,7 @@ class PronounResolver(PostProcessingModule):
                 if rel.flags is None:
                     rel.flags = {}
                 rel.flags['POSSESSIVE_PRONOUN_UNRESOLVED_SOURCE'] = True
-        elif self.is_pronoun(rel.source):
+        elif self.is_pronoun(rel.source) and not should_skip_source:
             generic_replacement = self.is_generic_pronoun(rel.source, evidence_text)
             if generic_replacement:
                 if rel.flags is None:
@@ -514,8 +524,12 @@ class PronounResolver(PostProcessingModule):
                     rel.flags['PRONOUN_UNRESOLVED_SOURCE'] = True
 
         # Resolve target
+        # V14.3.4 NEW: Skip pronoun resolution for proper noun types
+        target_type = getattr(rel, 'target_type', None)
+        should_skip_target = target_type in self.skip_pronoun_types if target_type else False
+
         # V10: Check for possessive pronouns first
-        if self.is_possessive_pronoun(rel.target):
+        if self.is_possessive_pronoun(rel.target) and not should_skip_target:
             resolved = self.resolve_possessive_pronouns(rel.target, page_num, evidence_text)
             if resolved:
                 if rel.flags is None:
@@ -528,7 +542,7 @@ class PronounResolver(PostProcessingModule):
                 if rel.flags is None:
                     rel.flags = {}
                 rel.flags['POSSESSIVE_PRONOUN_UNRESOLVED_TARGET'] = True
-        elif self.is_pronoun(rel.target):
+        elif self.is_pronoun(rel.target) and not should_skip_target:
             generic_replacement = self.is_generic_pronoun(rel.target, evidence_text)
             if generic_replacement:
                 if rel.flags is None:
